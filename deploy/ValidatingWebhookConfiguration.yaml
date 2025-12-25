@@ -1,0 +1,25 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: signed-image-webhook
+  annotations:
+    cert-manager.io/inject-ca-from: security/signed-image-webhook-cert
+webhooks:
+  - name: signed-image.security.local
+    rules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+    clientConfig:
+      service:
+        name: signed-image-webhook
+        namespace: security
+        path: /webhook
+        port: 443
+      # caBundle is injected automatically by cert-manager cainjector.
+      caBundle: ""
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    timeoutSeconds: 5
