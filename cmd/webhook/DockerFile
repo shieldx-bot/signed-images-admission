@@ -1,0 +1,38 @@
+# NOTE:
+# - This file is named "DockerFile" (capital F). On Linux, filenames are case-sensitive.
+# - This Dockerfile expects the *build context* to be the repository root (so it can COPY go.mod and ./cmd/webhook).
+#   Use one of these:
+#     (Recommended) from repo root:
+#       docker build -t signed-images-admission-webhook:latest --target=prod .
+#     or, if you want to use this DockerFile specifically:
+#       docker build -f cmd/webhook/DockerFile -t signed-images-admission-webhook:latest .
+# docker build -f cmd/webhook/DockerFile -t signed-images-admission-webhook:latest .
+# Stage 1: build
+FROM golang:1.23-alpine AS build
+WORKDIR /src
+
+# cài certs (để HTTPS client nếu cần), git (nếu có private modules)
+RUN apk add --no-cache ca-certificates git
+
+# cache deps
+COPY go.mod go.sum ./
+RUN go mod download
+
+# copy source
+COPY . .
+
+# build binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" -o /out/webhook ./cmd/webhook
+
+# Stage 2: runtime
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates
+WORKDIR /
+
+COPY --from=build /out/webhook /webhook
+
+# chỉnh theo port app của bạn (vd 8443 cho admission webhook TLS)
+EXPOSE 8085
+
+CMD ["/webhook"]
