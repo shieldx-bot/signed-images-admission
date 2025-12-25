@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-signed
+spec:
+  selector:
+    namespace: security
+    matchLabels:
+      app: frontend-signed
+  template:
+    metadata:
+      labels:
+        app: frontend-signed
+    spec:
+      containers:
+        - name: frontend-signed
+          image: frontend-signed:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 5000
+
+        - name: signed-image-webhook
+          image: signed-image-webhook:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 8085
