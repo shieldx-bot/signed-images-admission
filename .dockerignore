@@ -1,0 +1,23 @@
+.git
+.gitignore
+**/*.md
+**/*.log
+**/*_test.go
+
+# Local tooling
+.vscode/
+.idea/
+
+# Build outputs
+bin/
+out/
+dist/
+build/
+
+# Node / web UI (not needed for Go backend image)
+web-ui/**/node_modules/
+web-ui/**/dist/
+web-ui/**/.next/
+
+# OS cruft
+.DS_Store
