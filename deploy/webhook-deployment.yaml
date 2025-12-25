@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signed-image-webhook
+  namespace: security
+  labels:
+    app: signed-image-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: signed-image-webhook
+  template:
+    metadata:
+      labels:
+        app: signed-image-webhook
+    spec:
+      containers:
+        - name: webhook
+          image: signed-images-admission-webhook:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PORT
+              value: "8443"
+            - name: GIN_MODE
+              value: release
+            - name: TLS_CERT_FILE
+              value: /tls/tls.crt
+            - name: TLS_KEY_FILE
+              value: /tls/tls.key
+          ports:
+            - name: https
+              containerPort: 8443
+          volumeMounts:
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /ping
+              port: https
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              scheme: HTTPS
+              path: /ping
+              port: https
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: tls
+          secret:
+            secretName: signed-image-webhook-tls
