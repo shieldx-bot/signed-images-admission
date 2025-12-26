@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: signed-images-ingress
+  namespace: security
+spec:
+  rules:
+    - host: frontend.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-signed
+                port:
+                  number: 5000
+    - host: webhook.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: signed-image-webhook
+                port:
+                  number: 8443
