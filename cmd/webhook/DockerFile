@@ -1,38 +1,73 @@
+## syntax=docker/dockerfile:1.7
+
 # NOTE:
-# - This file is named "DockerFile" (capital F). On Linux, filenames are case-sensitive.
-# - This Dockerfile expects the *build context* to be the repository root (so it can COPY go.mod and ./cmd/webhook).
-#   Use one of these:
-#     (Recommended) from repo root:
-#       docker build -t signed-images-admission-webhook:latest --target=prod .
-#     or, if you want to use this DockerFile specifically:
-#       docker build -f cmd/webhook/DockerFile -t signed-images-admission-webhook:latest .
-# docker build -f cmd/webhook/DockerFile -t signed-images-admission-webhook:latest .
+# - File này tên "DockerFile" (F hoa). Linux phân biệt hoa/thường.
+# - Build context phải là repo root (để COPY được go.mod/go.sum và source).
+#   Ví dụ:
+#     docker build -f cmd/webhook/DockerFile -t signed-images-admission-webhook:latest .
+
+############################
 # Stage 1: build
-FROM golang:1.23-alpine AS build
+############################
+ARG GO_VERSION=1.25
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-alpine AS build
 WORKDIR /src
 
-# cài certs (để HTTPS client nếu cần), git (nếu có private modules)
+# Tránh Go tự tải toolchain khác trong lúc build.
+ENV GOTOOLCHAIN=local
+
+# Git có thể cần cho go modules; ca-certs để TLS.
 RUN apk add --no-cache ca-certificates git
 
-# cache deps
+# Tối ưu cache theo layer (không phụ thuộc BuildKit --mount để tương thích rộng hơn).
 COPY go.mod go.sum ./
-RUN go mod download
 
-# copy source
+# Giảm CPU/RAM khi build (đặc biệt với cosign + k8s deps khá nặng).
+# Có thể override khi build: --build-arg GO_BUILD_JOBS=1
+ARG GO_BUILD_JOBS=2
+
+# Cache Go modules để build lần sau nhanh hơn.
+RUN --mount=type=cache,target=/go/pkg/mod \
+    GOMAXPROCS=${GO_BUILD_JOBS} go mod download
+
 COPY . .
 
-# build binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /out/webhook ./cmd/webhook
+# Hỗ trợ buildx / multi-arch: docker buildx build --platform linux/amd64,linux/arm64 ...
+ARG TARGETOS
+ARG TARGETARCH
 
+# Build binary static (an toàn + nhỏ gọn) + cache build output.
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 \
+    GOOS=${TARGETOS:-linux} \
+    GOARCH=${TARGETARCH:-amd64} \
+    GOMAXPROCS=${GO_BUILD_JOBS} \
+    go build -p ${GO_BUILD_JOBS} \
+    -trimpath \
+    -buildvcs=false \
+    -ldflags="-s -w" \
+    -o /out/webhook \
+    ./cmd/webhook
+
+############################
 # Stage 2: runtime
-FROM alpine:3.20
-RUN apk add --no-cache ca-certificates
-WORKDIR /
+############################
+# Distroless: nhỏ hơn Alpine và không có shell/package manager (tấn công khó hơn).
+FROM gcr.io/distroless/base-debian12:nonroot AS runtime
 
-COPY --from=build /out/webhook /webhook
+WORKDIR /app
 
-# chỉnh theo port app của bạn (vd 8443 cho admission webhook TLS)
-EXPOSE 8085
+# Binary + public key (main.go đang đọc "./cosign.pub").
+COPY --from=build --chmod=0555 /out/webhook /app/webhook
+COPY --chmod=0444 cmd/webhook/cosign.pub /app/cosign.pub
 
-CMD ["/webhook"]
+# Defaults khớp với manifest K8s hiện tại (containerPort 8443, readiness HTTPS /ping).
+ENV PORT=8443 \
+    TLS_ENABLED=true \
+    TLS_CERT_FILE=/tls/tls.crt \
+    TLS_KEY_FILE=/tls/tls.key \
+    GIN_MODE=release
+
+EXPOSE 8443
+
+ENTRYPOINT ["/app/webhook"]
