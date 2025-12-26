@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","kind":"Namespace","metadata":{"annotations":{},"name":"security"}}
+  creationTimestamp: "2025-12-24T16:17:24Z"
+  labels:
+    kubernetes.io/metadata.name: security
+  name: security
+  resourceVersion: "682869"
+  uid: 096eb4c8-50b7-4b4b-92d8-dc332f06bc49
+spec:
+  finalizers:
+    - kubernetes
+status:
+  phase: Active
