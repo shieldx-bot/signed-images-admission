@@ -1,0 +1,17 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: signed-image-webhook-cert
+  namespace: security
+spec:
+  secretName: signed-image-webhook-tls
+  # Must match the Service DNS name kube-apiserver will call.
+  commonName: signed-image-webhook.security.svc
+  dnsNames:
+    - signed-image-webhook
+    - signed-image-webhook.security
+    - signed-image-webhook.security.svc
+    - signed-image-webhook.security.svc.cluster.local
+  issuerRef:
+    name: webhook-selfsigned
+    kind: Issuer
