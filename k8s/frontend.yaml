@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-signed
+  namespace: security
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-signed
+  template:
+    metadata:
+      labels:
+        app: frontend-signed
+    spec:
+      containers:
+        - name: frontend-signed
+          image: frontend-signed:latest
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 5000
