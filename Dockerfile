@@ -12,7 +12,7 @@
 ##     docker build --target=prod -t signed-webhook:prod .
 ##     docker run --rm -p 8443:8443 signed-webhook:prod
 
-ARG GO_VERSION=1.23
+ARG GO_VERSION=1.25
 ARG APP_PATH=./cmd/webhook
 ARG BIN_NAME=webhook
 
@@ -75,11 +75,14 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 FROM gcr.io/distroless/base-debian12:nonroot AS prod
 ARG BIN_NAME
 
-WORKDIR /
-COPY --from=build /out/${BIN_NAME} /${BIN_NAME}
+WORKDIR /app
+COPY --from=build /out/${BIN_NAME} /app/${BIN_NAME}
+
+# Optional: keep the public key alongside the binary (main.go reads ./cosign.pub)
+COPY cmd/webhook/cosign.pub /app/cosign.pub
 
 ENV PORT=8443
 EXPOSE 8443
 
 USER nonroot:nonroot
-ENTRYPOINT ["/webhook"]
+ENTRYPOINT ["/app/webhook"]
