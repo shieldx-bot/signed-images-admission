@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"path/filepath"
@@ -16,22 +15,22 @@ func GetClientset() (*kubernetes.Clientset, error) {
 	home := homedir.HomeDir()
 	if home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
 	} else {
 		kubeconfig = flag.String("kubeconfig", "", "absolute ")
+	}
+	if !flag.Parsed() {
 		flag.Parse()
 	}
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		fmt.Printf("Không tìm thấy file kubeconfig")
+		return nil, fmt.Errorf("không tìm thấy file kubeconfig: %w", err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("Token config không đúng")
+		return nil, fmt.Errorf("token/config không đúng: %w", err)
 	}
 
-	Namespace, err := clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
-
+	return clientset, nil
 }
 
 // Pods, err := clientset.CoreV1().Pods("sre-mart").List(context.TODO(), metav1.ListOptions{})
