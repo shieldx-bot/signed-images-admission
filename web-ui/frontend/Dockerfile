@@ -15,7 +15,7 @@ COPY . .
 RUN npm run build
 # -> Kết quả của tầng này là thư mục /app/dist
 
-# --- TẦNG 2: "SẢN PHẨM" (PRODUCTION) ---
+# --- TẦNG 2: "SẢN PH`ẨM" (PRODUCTION) ---
 FROM nginx:1.27-alpine
 
 # Xóa file cấu hình nginx mặc định
